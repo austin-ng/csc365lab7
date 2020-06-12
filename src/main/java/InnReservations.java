@@ -157,7 +157,7 @@ public class InnReservations {
 	}
 
 	private void updateReservation(int code) throws SQLException {
-    	//FIXME NEED TO CHECK WHETHER BEGIN AND END DATES CONFLICT
+    	//FIXME NEED TO CHECK WHETHER END DATE IS LATER THAN BEGIN DATE
 		try (Connection conn = DriverManager.getConnection(JDBC_URL,
 				JDBC_USER,
 				JDBC_PASSWORD)) {
@@ -181,14 +181,34 @@ public class InnReservations {
 			System.out.print("Begin Date (YYYY-MM-DD): ");
 			String begin = s.nextLine();
 			if (!begin.equals("no change")){
-				colsList.add("CheckIn");
-				valsList.add(begin);
+				if (simpleDateParse(begin)) {
+					if (checkBeginConflict(code, begin)){
+						colsList.add("CheckIn");
+						valsList.add(begin);
+					} else {
+						System.out.println("This begin date conflicts with another reservation in the database." +
+								"The begin date for the reservation will not be updated.");
+					}
+				} else {
+					System.out.println("The date entered was incorrectly formatted. " +
+							"The begin date for the reservation will not be updated.");
+				}
 			}
 			System.out.print("End Date (YYYY-MM-DD): ");
 			String end = s.nextLine();
 			if (!end.equals("no change")){
-				colsList.add("CheckOut");
-				valsList.add(end);
+				if (simpleDateParse(end)) {
+					if (checkEndConflict(code, end)){
+						colsList.add("CheckOut");
+						valsList.add(end);
+					} else {
+						System.out.println("This end date conflicts with another reservation in the database." +
+								"The end date for the reservation will not be updated.");
+					}
+				} else {
+					System.out.println("The date entered was incorrectly formatted. " +
+							"The end date for the reservation will not be updated.");
+				}
 			}
 			System.out.print("Number of Children: ");
 			String kids = s.nextLine();
@@ -224,6 +244,80 @@ public class InnReservations {
 		}
 	}
 
+	private boolean simpleDateParse(String date){
+    	if (date.length() != 10){
+    		return false;
+		}
+    	if (date.charAt(4) != '-' || date.charAt(7) != '-'){
+    		return false;
+		}
+    	int x;
+    	try {
+    		x = Integer.parseInt(date.substring(0, 4));
+    		if (x < 0){
+				return false;
+			}
+		} catch (NumberFormatException e) {
+			return false;
+		}
+		try {
+			x = Integer.parseInt(date.substring(5, 7));
+			if (x < 1  || x > 12){
+				return false;
+			}
+		} catch (NumberFormatException e) {
+			return false;
+		}
+		try {
+			x = Integer.parseInt(date.substring(8, 10));
+			if (x < 1 || x > 31){
+				return false;
+			}
+		} catch (NumberFormatException e) {
+			return false;
+		}
+		return true;
+	}
+
+	private boolean checkBeginConflict(int code, String begin) throws SQLException {
+		try (Connection conn = DriverManager.getConnection(JDBC_URL,
+				JDBC_USER,
+				JDBC_PASSWORD)) {
+			// dont need to sanitize this because input is integer from nextInt
+			String sql = "SELECT R2.CheckIn, R2.CheckOut\n" +
+						 "FROM lab7_reservations AS R1 JOIN lab7_reservations AS R2 ON R1.Room=R2.Room\n" +
+						 "   AND R1.Code=" + code + "\n" +
+						 "WHERE (R2.CheckIn<=\'" + begin + "\' AND R2.CheckOut>\'" + begin + "\')\n" +
+						 "	 OR (R2.CheckIn>=\'" + begin + "\' AND R2.CheckIn<R1.CheckOut);";
+
+
+			try (Statement stmt = conn.createStatement();
+				 ResultSet rs = stmt.executeQuery(sql)) {
+
+				return !rs.isBeforeFirst();
+			}
+		}
+	}
+
+	private boolean checkEndConflict(int code, String end) throws SQLException {
+		try (Connection conn = DriverManager.getConnection(JDBC_URL,
+				JDBC_USER,
+				JDBC_PASSWORD)) {
+			// dont need to sanitize this because input is integer from nextInt
+			String sql = "SELECT R2.CheckIn, R2.CheckOut\n" +
+					"FROM lab7_reservations AS R1 JOIN lab7_reservations AS R2 ON R1.Room=R2.Room\n" +
+					"   AND R1.Code=" + code + "\n" +
+					"WHERE (R2.CheckIn<=\'" + end + "\' AND R2.CheckOut>\'" + end + "\')\n" +
+					"	 OR (R2.CheckIn<=\'" + end + "\' AND R2.CheckIn>R1.CheckIn);";
+
+
+			try (Statement stmt = conn.createStatement();
+				 ResultSet rs = stmt.executeQuery(sql)) {
+
+				return !rs.isBeforeFirst();
+			}
+		}
+	}
 
     private void initDb() throws SQLException {
 	try (Connection conn = DriverManager.getConnection(JDBC_URL,
@@ -241,7 +335,7 @@ public class InnReservations {
                         "basePrice float DEFAULT NULL, " +
                         "decor varchar(20) DEFAULT NULL)");
                 stmt.execute("CREATE TABLE lab7_reservations (" +
-                        "CODE int(11) PRIMARY KEY," +
+                        "CODE int(11) PRIMARY KEY, " +
                         "Room char(5) REFERENCES lab7_rooms (RoomCode), " +
                         "CheckIn DATE, " +
                         "CheckOut DATE, " +
@@ -249,7 +343,8 @@ public class InnReservations {
                         "LastName varchar(15), " +
                         "FirstName varchar(15), " +
                         "Adults int(11) DEFAULT NULL, " +
-                        "Kids int(11) DEFAULT NULL)");
+                        "Kids int(11) DEFAULT NULL, " +
+						"CHECK (CheckIn <= CheckOut))");
                 stmt.execute("INSERT INTO lab7_rooms" +
                         "(RoomCode, RoomName, Beds, bedType, maxOcc, basePrice, decor) " +
                         "VALUES ('AOB', 'Abscond or bolster', 2, 'Queen', 4, 175, 'traditional')");
