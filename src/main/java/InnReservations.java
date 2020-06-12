@@ -28,13 +28,14 @@ public class InnReservations {
 	    Scanner s = new Scanner(System.in);
 	    int cur = 0;
 	    while (cur != 6) {
+	    	System.out.println();
 	    	System.out.println("Select an option:");
 	    	System.out.println("1: Rooms and Rates");
 	    	System.out.println("2: Reservations");
 	    	System.out.println("3: Reservation Change");
 	    	System.out.println("4: Reservation Cancellation");
 	    	System.out.println("5: Revenue Summary");
-	    	System.out.println("6: Quit program");
+	    	System.out.println("6: Quit program\n");
 	    	System.out.print("Enter option number: ");
 	    	cur = s.nextInt();
 
@@ -65,7 +66,23 @@ public class InnReservations {
 							   JDBC_USER,
 							   JDBC_PASSWORD)) {
 	    // Step 2: Construct SQL statement
-	    String sql = "SELECT * FROM lab7_rooms ORDER BY RoomName";
+		String sql = "WITH CurrOccupied AS (\n" +
+				"	SELECT RoomCode, CheckOut AS NextAvail\n" +
+				"	FROM lab7_rooms JOIN lab7_reservations ON Room=RoomCode\n" +
+				"	WHERE CheckIn<=CURDATE() AND CheckOut>CURDATE()\n" +
+				"),\n" +
+				"NextRes AS (\n" +
+				"    SELECT DISTINCT RoomCode, \n" +
+				"        MIN(CheckIn) OVER (PARTITION BY RoomCode) AS NextReservation\n" +
+				"    FROM lab7_rooms JOIN lab7_reservations ON RoomCode=Room\n" +
+				"    WHERE CheckIn>CURDATE()\n" +
+				")\n" +
+				"SELECT R.RoomCode, R.RoomName, R.Beds, R.bedType, R.maxOcc, R.basePrice,\n" +
+				"    R.decor, NextAvail, NextReservation\n" +
+				"FROM (lab7_rooms AS R LEFT JOIN CurrOccupied AS CO ON R.RoomCode=CO.RoomCode)\n" +
+				// just a normal join works in actual sql; need left join here for H2
+				"    LEFT JOIN NextRes AS NR ON NR.RoomCode=R.RoomCode\n" +
+				"ORDER BY RoomName;";
 
 	    // Step 3: (omitted in this example) Start transaction
 
@@ -74,8 +91,7 @@ public class InnReservations {
 		 ResultSet rs = stmt.executeQuery(sql)) {
 
 		// Step 5: Receive results
-	    //FIXME: Still need to output nextcheckin and nextreservation
-	    System.out.println("1: Rooms and rates, ordered by:");
+	    System.out.println("1: Rooms and rates, output has the format:");
 	    System.out.println("RoomCode, RoomName, Beds, bedType, maxOcc, basePrice, decor, nextCheckIn, nextReservation:");
 		while (rs.next()) {
 		    String code = rs.getString("RoomCode");
@@ -84,7 +100,18 @@ public class InnReservations {
 		    String bedType = rs.getString("bedType");
 		    int maxOcc = rs.getInt("maxOcc");
 		    float price = rs.getFloat("basePrice");
-		    System.out.format("%s, %s, %d, %s, %d, ($%.2f) %n", code, name, beds, bedType, maxOcc, price);
+		    String decor = rs.getString("decor");
+		    String nextAvail = rs.getString("NextAvail");
+		    // Tried to handle this in SQL query using ifnull and it worked on labthreesixfive, but not for H2
+		    if (nextAvail == null){
+		    	nextAvail = "Today";
+			}
+		    String nextReservation = rs.getString("NextReservation");
+			if (nextReservation == null){
+				nextReservation = "None";
+			}
+		    System.out.format("%s, %s, %d, %s, %d, ($%.2f), %s, %s, %s %n",
+					code, name, beds, bedType, maxOcc, price, decor, nextAvail, nextReservation);
 		}
 	    }
 
@@ -303,14 +330,14 @@ public class InnReservations {
                 stmt.execute("DROP TABLE IF EXISTS lab7_rooms");
                 stmt.execute("CREATE TABLE lab7_rooms (" +
                         "RoomCode char(5) PRIMARY KEY, " +
-                        "RoomName varchar(30), " +
-                        "Beds int(11), " +
-                        "bedType varchar(8), " +
-                        "maxOcc int(11), " +
-                        "basePrice float, " +
-                        "decor varchar(20))");
+                        "RoomName varchar(30) DEFAULT NULL, " +
+                        "Beds int(11) DEFAULT NULL, " +
+                        "bedType varchar(8) DEFAULT NULL, " +
+                        "maxOcc int(11) DEFAULT NULL, " +
+                        "basePrice float DEFAULT NULL, " +
+                        "decor varchar(20) DEFAULT NULL)");
                 stmt.execute("CREATE TABLE lab7_reservations (" +
-                        "CODE int(11) PRIMARY KEY, " +
+                        "CODE int(11), " +
                         "Room char(5) REFERENCES lab7_rooms (RoomCode), " +
                         "CheckIn DATE, " +
                         "CheckOut DATE, " +
@@ -318,7 +345,8 @@ public class InnReservations {
                         "LastName varchar(15), " +
                         "FirstName varchar(15), " +
                         "Adults int(11), " +
-                        "Kids int(11))");
+                        "Kids int(11), " +
+						"PRIMARY KEY (CODE, CheckIn, CheckOut))");
                 stmt.execute("INSERT INTO lab7_rooms" +
                         "(RoomCode, RoomName, Beds, bedType, maxOcc, basePrice, decor) " +
                         "VALUES ('AOB', 'Abscond or bolster', 2, 'Queen', 4, 175, 'traditional')");
@@ -337,6 +365,9 @@ public class InnReservations {
                 stmt.execute("INSERT INTO lab7_reservations" +
                         "(CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids) " +
                         "VALUES (10984, 'AOB', '2010-12-28', '2011-01-01', 201.25, 'ZULLO', 'WILLY', 2, 1)");
+				stmt.execute("INSERT INTO lab7_reservations" +
+					"(CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids) " +
+					"VALUES (10990, 'CAS', '2020-09-21', '2020-09-27', 175, 'TRACHSEL', 'DAMIEN', 1, 3)");
 	    }
 	}
     }
