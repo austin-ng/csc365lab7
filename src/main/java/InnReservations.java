@@ -46,6 +46,14 @@ public class InnReservations {
 	    		case 2:
 	    			break;
 	    		case 3:
+	    			System.out.println("Please enter the integer code of the reservation you would like to update:");
+	    			int code = s.nextInt();
+	    			while(!ir.getReservation(code)){
+	    				System.out.println("There are no reservations with that reservation code. " +
+								"Please enter a valid integer code:");
+						code = s.nextInt();
+					}
+	    			ir.updateReservation(code);
 	    			break;
 	    		case 4:
 	    			break;
@@ -61,11 +69,9 @@ public class InnReservations {
     }
 
     private void outputRooms() throws SQLException {
-    	// Step 1: Establish connection to RDBMS
 	try (Connection conn = DriverManager.getConnection(JDBC_URL,
 							   JDBC_USER,
 							   JDBC_PASSWORD)) {
-	    // Step 2: Construct SQL statement
 		String sql = "WITH CurrOccupied AS (\n" +
 				"	SELECT RoomCode, CheckOut AS NextAvail\n" +
 				"	FROM lab7_rooms JOIN lab7_reservations ON Room=RoomCode\n" +
@@ -84,13 +90,9 @@ public class InnReservations {
 				"    LEFT JOIN NextRes AS NR ON NR.RoomCode=R.RoomCode\n" +
 				"ORDER BY RoomName;";
 
-	    // Step 3: (omitted in this example) Start transaction
-
-	    // Step 4: Send SQL statement to DBMS
 	    try (Statement stmt = conn.createStatement();
 		 ResultSet rs = stmt.executeQuery(sql)) {
 
-		// Step 5: Receive results
 	    System.out.println("1: Rooms and rates, output has the format:");
 	    System.out.println("RoomCode, RoomName, Beds, bedType, maxOcc, basePrice, decor, nextCheckIn, nextReservation:");
 		while (rs.next()) {
@@ -115,211 +117,113 @@ public class InnReservations {
 		}
 	    }
 
-	    // Step 6: (omitted in this example) Commit or rollback transaction
 	}
-	// Step 7: Close connection (handled by try-with-resources syntax)
-
     }
 
+	private boolean getReservation(int code) throws SQLException {
+		try (Connection conn = DriverManager.getConnection(JDBC_URL,
+				JDBC_USER,
+				JDBC_PASSWORD)) {
+			// dont need to sanitize this because input is integer from nextInt
+			String sql = "SELECT * FROM lab7_reservations WHERE Code=" + code;
 
+			try (Statement stmt = conn.createStatement();
+				 ResultSet rs = stmt.executeQuery(sql)) {
 
-    /*
-    // Demo1 - Establish JDBC connection, execute DDL statement
-    private void demo1() throws SQLException {
+				if (!rs.isBeforeFirst() ) {
+					return false;
+				}
 
-	// Step 0: Load JDBC Driver
-	// No longer required as of JDBC 2.0  / Java 6
-	try{
-	    Class.forName("org.h2.Driver");
-	    System.out.println("H2 JDBC Driver loaded");
-	} catch (ClassNotFoundException ex) {
-	    System.err.println("Unable to load JDBC Driver");
-	    System.exit(-1);
-	}
-
-	// Step 1: Establish connection to RDBMS
-	try (Connection conn = DriverManager.getConnection(JDBC_URL,
-							   JDBC_USER,
-							   JDBC_PASSWORD)) {
-	    // Step 2: Construct SQL statement
-	    String sql = "ALTER TABLE hp_goods ADD COLUMN AvailUntil DATE";
-
-	    // Step 3: (omitted in this example) Start transaction
-
-	    try (Statement stmt = conn.createStatement()) {
-
-		// Step 4: Send SQL statement to DBMS
-		boolean exRes = stmt.execute(sql);
-		
-		// Step 5: Handle results
-		System.out.format("Result from ALTER: %b %n", exRes);
-	    }
-
-	    // Step 6: (omitted in this example) Commit or rollback transaction
-	}
-	// Step 7: Close connection (handled by try-with-resources syntax)
-    }
-    
-
-    // Demo2 - Establish JDBC connection, execute SELECT query, read & print result
-    private void demo2() throws SQLException {
-
-	// Step 1: Establish connection to RDBMS
-	try (Connection conn = DriverManager.getConnection(JDBC_URL,
-							   JDBC_USER,
-							   JDBC_PASSWORD)) {
-	    // Step 2: Construct SQL statement
-	    String sql = "SELECT * FROM hp_goods";
-
-	    // Step 3: (omitted in this example) Start transaction
-
-	    // Step 4: Send SQL statement to DBMS
-	    try (Statement stmt = conn.createStatement();
-		 ResultSet rs = stmt.executeQuery(sql)) {
-
-		// Step 5: Receive results
-		while (rs.next()) {
-		    String flavor = rs.getString("Flavor");
-		    String food = rs.getString("Food");
-		    float price = rs.getFloat("Price");
-		    System.out.format("%s %s ($%.2f) %n", flavor, food, price);
-		}
-	    }
-
-	    // Step 6: (omitted in this example) Commit or rollback transaction
-	}
-	// Step 7: Close connection (handled by try-with-resources syntax)
-    }
-
-
-    // Demo3 - Establish JDBC connection, execute DML query (UPDATE)
-    // -------------------------------------------
-    // Never (ever) write database code like this!
-    // -------------------------------------------
-    private void demo3() throws SQLException {
-
-        demo2();
-        
-	// Step 1: Establish connection to RDBMS
-	try (Connection conn = DriverManager.getConnection(JDBC_URL,
-							   JDBC_USER,
-							   JDBC_PASSWORD)) {
-	    // Step 2: Construct SQL statement
-	    Scanner scanner = new Scanner(System.in);
-	    System.out.print("Enter a flavor: ");
-	    String flavor = scanner.nextLine();
-	    System.out.format("Until what date will %s be available (YYYY-MM-DD)? ", flavor);
-	    String availUntilDate = scanner.nextLine();
-
-	    // -------------------------------------------
-	    // Never (ever) write database code like this!
-	    // -------------------------------------------
-	    String updateSql = "UPDATE hp_goods SET AvailUntil = '" + availUntilDate + "' " +
-		               "WHERE Flavor = '" + flavor + "'";
-
-	    // Step 3: (omitted in this example) Start transaction
-	    
-	    try (Statement stmt = conn.createStatement()) {
-		
-		// Step 4: Send SQL statement to DBMS
-		int rowCount = stmt.executeUpdate(updateSql);
-		
-		// Step 5: Handle results
-		System.out.format("Updated %d records for %s pastries%n", rowCount, flavor);		
-	    }
-
-	    // Step 6: (omitted in this example) Commit or rollback transaction
-	    
-	}
-	// Step 7: Close connection (handled implcitly by try-with-resources syntax)
-
-        demo2();
-        
-    }
-
-
-    // Demo4 - Establish JDBC connection, execute DML query (UPDATE) using PreparedStatement / transaction    
-    private void demo4() throws SQLException {
-
-	// Step 1: Establish connection to RDBMS
-	try (Connection conn = DriverManager.getConnection(JDBC_URL,
-							   JDBC_USER,
-							   JDBC_PASSWORD)) {
-	    // Step 2: Construct SQL statement
-	    Scanner scanner = new Scanner(System.in);
-	    System.out.print("Enter a flavor: ");
-	    String flavor = scanner.nextLine();
-	    System.out.format("Until what date will %s be available (YYYY-MM-DD)? ", flavor);
-	    LocalDate availDt = LocalDate.parse(scanner.nextLine());
-	    
-	    String updateSql = "UPDATE hp_goods SET AvailUntil = ? WHERE Flavor = ?";
-
-	    // Step 3: Start transaction
-	    conn.setAutoCommit(false);
-	    
-	    try (PreparedStatement pstmt = conn.prepareStatement(updateSql)) {
-		
-		// Step 4: Send SQL statement to DBMS
-		pstmt.setDate(1, java.sql.Date.valueOf(availDt));
-		pstmt.setString(2, flavor);
-		int rowCount = pstmt.executeUpdate();
-		
-		// Step 5: Handle results
-		System.out.format("Updated %d records for %s pastries%n", rowCount, flavor);
-
-		// Step 6: Commit or rollback transaction
-		conn.commit();
-	    } catch (SQLException e) {
-		conn.rollback();
-	    }
-
-	}
-	// Step 7: Close connection (handled implcitly by try-with-resources syntax)
-    }
-
-
-
-    // Demo5 - Construct a query using PreparedStatement
-    private void demo5() throws SQLException {
-
-	// Step 1: Establish connection to RDBMS
-	try (Connection conn = DriverManager.getConnection(JDBC_URL,
-							   JDBC_USER,
-							   JDBC_PASSWORD)) {
-	    Scanner scanner = new Scanner(System.in);
-	    System.out.print("Find pastries with price <=: ");
-	    Double price = Double.valueOf(scanner.nextLine());
-	    System.out.print("Filter by flavor (or 'Any'): ");
-	    String flavor = scanner.nextLine();
-
-	    List<Object> params = new ArrayList<Object>();
-	    params.add(price);
-	    StringBuilder sb = new StringBuilder("SELECT * FROM hp_goods WHERE price <= ?");
-	    if (!"any".equalsIgnoreCase(flavor)) {
-		sb.append(" AND Flavor = ?");
-		params.add(flavor);
-	    }
-	    
-	    try (PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
-		int i = 1;
-		for (Object p : params) {
-		    pstmt.setObject(i++, p);
+				System.out.println("This is your current reservation (output format: " +
+						"CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids):");
+				while (rs.next()) {
+					String resCode = rs.getString("Code");
+					String room = rs.getString("Room");
+					String checkIn = rs.getString("CheckIn");
+					String checkOut = rs.getString("CheckOut");
+					float rate = rs.getFloat("Rate");
+					String last = rs.getString("LastName");
+					String first = rs.getString("FirstName");
+					int adults = rs.getInt("Adults");
+					int kids = rs.getInt("Kids");
+					// Tried to handle this in SQL query using ifnull and it worked on labthreesixfive, but not for H2
+					System.out.format("%s, %s, %s, %s, ($%.2f), %s, %s, %d, %d %n",
+							resCode, room, checkIn, checkOut, rate, last, first, adults, kids);
+				}
+			}
 		}
 
-		try (ResultSet rs = pstmt.executeQuery()) {
-		    System.out.println("Matching Pastries:");
-		    int matchCount = 0;
-		    while (rs.next()) {
-			System.out.format("%s %s ($%.2f) %n", rs.getString("Flavor"), rs.getString("Food"), rs.getDouble("price"));
-			matchCount++;
-		    }
-		    System.out.format("----------------------%nFound %d match%s %n", matchCount, matchCount == 1 ? "" : "es");
-		}
-	    }
-
+		return true;
 	}
-    }
-    */
+
+	private void updateReservation(int code) throws SQLException {
+    	//FIXME NEED TO CHECK WHETHER BEGIN AND END DATES CONFLICT
+		try (Connection conn = DriverManager.getConnection(JDBC_URL,
+				JDBC_USER,
+				JDBC_PASSWORD)) {
+			Scanner s = new Scanner(System.in);
+			ArrayList<String> colsList = new ArrayList<String>();
+			ArrayList<String> valsList = new ArrayList<String>();
+			System.out.println("For each of the following values, please enter the new value; " +
+					"(enter \"no change\" if you do not wish to change that particular value for the reservation):");
+			System.out.print("First Name: ");
+			String first = s.nextLine();
+			if (!first.equals("no change")){
+				colsList.add("FirstName");
+				valsList.add(first);
+			}
+			System.out.print("Last Name: ");
+			String last = s.nextLine();
+			if (!last.equals("no change")){
+				colsList.add("LastName");
+				valsList.add(last);
+			}
+			System.out.print("Begin Date (YYYY-MM-DD): ");
+			String begin = s.nextLine();
+			if (!begin.equals("no change")){
+				colsList.add("CheckIn");
+				valsList.add(begin);
+			}
+			System.out.print("End Date (YYYY-MM-DD): ");
+			String end = s.nextLine();
+			if (!end.equals("no change")){
+				colsList.add("CheckOut");
+				valsList.add(end);
+			}
+			System.out.print("Number of Children: ");
+			String kids = s.nextLine();
+			if (!kids.equals("no change")){
+				colsList.add("Kids");
+				valsList.add(kids);
+			}
+			System.out.print("Number of Adults: ");
+			String adults = s.nextLine();
+			if (!adults.equals("no change")){
+				colsList.add("Adults");
+				valsList.add(adults);
+			}
+
+			if (colsList.size()>0){
+				String sql = "UPDATE lab7_reservations SET ";
+				for (int i = 0; i < colsList.size(); i++){
+					sql = sql + colsList.get(i) + "=?, ";
+				}
+				sql = sql.substring(0, sql.length()-2) + " WHERE CODE=" + code;
+
+				PreparedStatement pstmt = conn.prepareStatement(sql);
+				for (int i = 0; i < valsList.size(); i++) {
+					if (colsList.get(i).equals("Kids") || colsList.get(i).equals("Adults")) {
+						pstmt.setInt(i + 1, Integer.parseInt(valsList.get(i)));
+					} else {
+						pstmt.setString(i + 1, valsList.get(i));
+					}
+				}
+
+				pstmt.executeUpdate();
+			}
+		}
+	}
+
 
     private void initDb() throws SQLException {
 	try (Connection conn = DriverManager.getConnection(JDBC_URL,
