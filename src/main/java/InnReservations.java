@@ -158,7 +158,6 @@ public class InnReservations {
 	}
 
 	private void updateReservation(int code) throws SQLException {
-    	//FIXME NEED TO CHECK WHETHER END DATE IS LATER THAN BEGIN DATE
 		try (Connection conn = DriverManager.getConnection(JDBC_URL,
 				JDBC_USER,
 				JDBC_PASSWORD)) {
