@@ -337,16 +337,15 @@ public class InnReservations {
                         "basePrice float DEFAULT NULL, " +
                         "decor varchar(20) DEFAULT NULL)");
                 stmt.execute("CREATE TABLE lab7_reservations (" +
-                        "CODE int(11), " +
+                        "CODE int(11) PRIMARY KEY," +
                         "Room char(5) REFERENCES lab7_rooms (RoomCode), " +
                         "CheckIn DATE, " +
                         "CheckOut DATE, " +
                         "Rate float, " +
                         "LastName varchar(15), " +
                         "FirstName varchar(15), " +
-                        "Adults int(11), " +
-                        "Kids int(11), " +
-						"PRIMARY KEY (CODE, CheckIn, CheckOut))");
+                        "Adults int(11) DEFAULT NULL, " +
+                        "Kids int(11) DEFAULT NULL)");
                 stmt.execute("INSERT INTO lab7_rooms" +
                         "(RoomCode, RoomName, Beds, bedType, maxOcc, basePrice, decor) " +
                         "VALUES ('AOB', 'Abscond or bolster', 2, 'Queen', 4, 175, 'traditional')");
@@ -367,7 +366,10 @@ public class InnReservations {
                         "VALUES (10984, 'AOB', '2010-12-28', '2011-01-01', 201.25, 'ZULLO', 'WILLY', 2, 1)");
 				stmt.execute("INSERT INTO lab7_reservations" +
 					"(CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids) " +
-					"VALUES (10990, 'CAS', '2020-09-21', '2020-09-27', 175, 'TRACHSEL', 'DAMIEN', 1, 3)");
+					"VALUES (10991, 'CAS', '2020-09-21', '2020-09-27', 175, 'TRACHSEL', 'DAMIEN', 1, 3)");
+				stmt.execute("INSERT INTO lab7_reservations" +
+					"(CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids) " +
+					"VALUES (10992, 'CAS', '2080-09-21', '2080-09-27', 175, 'BIG', 'DATE', 1, 3)");
 	    }
 	}
     }
