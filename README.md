@@ -2,7 +2,7 @@ CSC 365 Lab 7
 Team Members: Austin Ng, Shubham Sengar
 
 Compilation instructions:
-To run program, run the command:
+To run program, run the command from csc365lab7 directory:
 ./gradlew run -q --console=plain
 
 Known bugs/deficiencies:
