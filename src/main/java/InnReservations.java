@@ -139,7 +139,8 @@ public class InnReservations {
 	}
     }
 
-
+    // still needs to calculate total price
+    // inserting reservation ID should be fixed
     private void reserveRoom() throws SQLException {
 
 	try (Connection conn = DriverManager.getConnection(JDBC_URL,
