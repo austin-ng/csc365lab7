@@ -7,4 +7,4 @@ To run program, run the command:
 
 Known bugs/deficiencies:
 - Option 2 does not list total price
-- Reservation IDs are not checked, may cause error when adding many at a time
+- Reservation IDs are not checked, may cause error when adding many (10000+) reservations
