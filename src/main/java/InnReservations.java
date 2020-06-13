@@ -45,6 +45,7 @@ public class InnReservations {
 	    			ir.outputRooms();
 	    			break;
 	    		case 2:
+	    			ir.reserveRoom();
 	    			break;
 	    		case 3:
 	    			System.out.println("Please enter the integer code of the reservation you would like to update:");
@@ -137,6 +138,115 @@ public class InnReservations {
 
 	}
     }
+
+
+    private void reserveRoom() throws SQLException {
+
+	try (Connection conn = DriverManager.getConnection(JDBC_URL,
+							   JDBC_USER,
+							   JDBC_PASSWORD)) {
+    	System.out.println("2: Enter reservation information:");
+    	Scanner s = new Scanner(System.in);
+    	System.out.print("First name: ");
+    	String first = s.nextLine();
+    	System.out.print("Last Name: ");
+    	String last = s.nextLine();
+    	System.out.print("Desired room code: ");
+    	String rmcode = s.nextLine();
+    	System.out.print("Begin date of stay (YYYY-MM-DD): ");
+    	String begin = s.nextLine();
+    	System.out.print("End date of stay (YYYY-MM-DD): ");
+    	String end = s.nextLine();
+    	System.out.print("Number of children: ");
+    	int children = s.nextInt();
+    	System.out.print("Number of adults: ");
+    	int adults = s.nextInt();
+
+	    // find all reservationss where there is a date conflict
+	    PreparedStatement pstmt = conn.prepareStatement(
+	    	"select * from lab7_reservations rs " +
+	    	"where rs.Room = ? " +
+	    	"and ((? not BETWEEN rs.CheckIn and rs.CheckOut) and " +
+            "(? not BETWEEN rs.CheckIn and rs.CheckOut))");
+			pstmt.setString(1, rmcode);
+			pstmt.setDate(2, java.sql.Date.valueOf(begin));
+			pstmt.setDate(3, java.sql.Date.valueOf(end));
+
+		// find in
+		PreparedStatement pstmt2 = conn.prepareStatement(
+			"select * from lab7_rooms rm " +
+			"where rm.RoomCode = ? "
+			);
+		pstmt2.setString(1, rmcode);
+
+		int new_id = 00000;
+
+
+
+		// if result set is empty, check capacity, else error
+		ResultSet rs = pstmt.executeQuery();
+		    if (!rs.isBeforeFirst()) {
+		    	ResultSet roominfo = pstmt2.executeQuery();
+		    	roominfo.next();
+		    	String rmname = roominfo.getString("RoomName");
+		    	String type = roominfo.getString("bedType");
+		    	int cap = roominfo.getInt("maxOcc");
+		    	float baserate = roominfo.getFloat("basePrice");
+		    	if (cap < children + adults) {
+		    		System.out.println("Unable to reserve: room capacity exceeded");
+		    	} else {
+		    		PreparedStatement pstmt3 = conn.prepareStatement(
+						"INSERT INTO lab7_reservations " +
+						"(CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids) " +
+						"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+		    		new_id = new_id + 1;
+		    		pstmt3.setInt(1, new_id);
+					pstmt3.setString(2, rmcode);
+					pstmt3.setDate(3, java.sql.Date.valueOf(begin));
+					pstmt3.setDate(4, java.sql.Date.valueOf(end));
+					pstmt3.setFloat(5, baserate);
+					pstmt3.setString(6, last);
+					pstmt3.setString(7, first);
+					pstmt3.setInt(8, adults);
+					pstmt3.setInt(9, children);
+					pstmt3.executeUpdate();
+	/*	    		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+					Date cid = sdf.parse(begin);
+					Date cod= sdf.parse(end);
+					LocalDate checkInDate = cid.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+					LocalDate checkOutDate = cod.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+					int weekdays = getBusinessDays(checkInDate, checkOutDate);
+					int weekends = getWeekends(checkInDate, checkOutDate);
+					float totalCost = (weekdays * baserate) + (weekends * (baserate * 1.1));
+	*/	    		System.out.println("Success: Reservation made without conflict");
+					System.out.print("First name: ");
+					System.out.println(first);
+					System.out.print("Last name: ");
+					System.out.println(last);
+					System.out.print("Room code: ");
+					System.out.println(rmcode);
+					System.out.print("Room name: ");
+					System.out.println(rmname);
+					System.out.print("Bed type: ");
+					System.out.println(type);
+					System.out.print("Check in: ");
+					System.out.println(begin);
+					System.out.print("Check out: ");
+					System.out.println(end);
+					System.out.print("Number of adults: ");
+					System.out.println(adults);
+					System.out.print("Number of children: ");
+					System.out.println(children);
+	//	    		System.out.println(totalCost);
+		    	}
+		    } else {
+		    	System.out.println("Unable to reserve: date conflict");
+		    }
+		}
+	    
+
+	}
+
 
 	private boolean getReservation(int code) throws SQLException {
 		try (Connection conn = DriverManager.getConnection(JDBC_URL,
