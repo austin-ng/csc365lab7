@@ -11,6 +11,12 @@ import java.util.LinkedHashMap;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.Calendar;
+import java.text.SimpleDateFormat;
+import java.time.*;
+import java.time.temporal.*;
 
 /*
 Introductory JDBC examples based loosely on the BAKERY dataset from CSC 365 labs.
@@ -167,35 +173,39 @@ public class InnReservations {
 	    PreparedStatement pstmt = conn.prepareStatement(
 	    	"select * from lab7_reservations rs " +
 	    	"where rs.Room = ? " +
-	    	"and ((? not BETWEEN rs.CheckIn and rs.CheckOut) and " +
-            "(? not BETWEEN rs.CheckIn and rs.CheckOut))");
+	    	"and ((? BETWEEN rs.CheckIn and rs.CheckOut) and " +
+            "(? BETWEEN rs.CheckIn and rs.CheckOut))");
 			pstmt.setString(1, rmcode);
 			pstmt.setDate(2, java.sql.Date.valueOf(begin));
 			pstmt.setDate(3, java.sql.Date.valueOf(end));
 
-		// find in
+		// find room information given room code
 		PreparedStatement pstmt2 = conn.prepareStatement(
 			"select * from lab7_rooms rm " +
 			"where rm.RoomCode = ? "
 			);
 		pstmt2.setString(1, rmcode);
 
+		// newly-generated id
 		int new_id = 00000;
 
 
 
-		// if result set is empty, check capacity, else error
+		// if result set is empty, then there are no conflicts
 		ResultSet rs = pstmt.executeQuery();
 		    if (!rs.isBeforeFirst()) {
+		    	// if no conflicts, check room information
 		    	ResultSet roominfo = pstmt2.executeQuery();
 		    	roominfo.next();
 		    	String rmname = roominfo.getString("RoomName");
 		    	String type = roominfo.getString("bedType");
 		    	int cap = roominfo.getInt("maxOcc");
 		    	float baserate = roominfo.getFloat("basePrice");
+		    	// check if capacity is reached
 		    	if (cap < children + adults) {
 		    		System.out.println("Unable to reserve: room capacity exceeded");
 		    	} else {
+		    		// if all checks pass, prepare and execute insertion
 		    		PreparedStatement pstmt3 = conn.prepareStatement(
 						"INSERT INTO lab7_reservations " +
 						"(CODE, Room, CheckIn, CheckOut, Rate, LastName, FirstName, Adults, Kids) " +
@@ -211,15 +221,16 @@ public class InnReservations {
 					pstmt3.setInt(8, adults);
 					pstmt3.setInt(9, children);
 					pstmt3.executeUpdate();
-	/*	    		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-					Date cid = sdf.parse(begin);
-					Date cod= sdf.parse(end);
-					LocalDate checkInDate = cid.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-					LocalDate checkOutDate = cod.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-					int weekdays = getBusinessDays(checkInDate, checkOutDate);
-					int weekends = getWeekends(checkInDate, checkOutDate);
-					float totalCost = (weekdays * baserate) + (weekends * (baserate * 1.1));
-	*/	    		System.out.println("Success: Reservation made without conflict");
+					// get dates to calculate total cost
+		    		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+					LocalDate dateBefore = LocalDate.parse(begin);
+					LocalDate dateAfter = LocalDate.parse(end);
+					long noOfDaysBetween = ChronoUnit.DAYS.between(dateBefore, dateAfter);
+					long weekdays = calcWeekDays1(dateBefore, dateAfter);
+					long weekends = noOfDaysBetween - weekdays;
+					float totalCost = (float) ((weekdays * baserate) + (weekends * (baserate * 1.1)));
+					// print successful reservation
+		    		System.out.println("Success: Reservation made without conflict");
 					System.out.print("First name: ");
 					System.out.println(first);
 					System.out.print("Last name: ");
@@ -238,15 +249,29 @@ public class InnReservations {
 					System.out.println(adults);
 					System.out.print("Number of children: ");
 					System.out.println(children);
-	//	    		System.out.println(totalCost);
+					System.out.print("Total cost: ");
+		    		System.out.println(totalCost);
 		    	}
 		    } else {
 		    	System.out.println("Unable to reserve: date conflict");
 		    }
 		}
-	    
-
 	}
+
+
+	// helper function to count week days
+	public static long calcWeekDays1(final LocalDate start, final LocalDate end) {
+    final DayOfWeek startW = start.getDayOfWeek();
+    final DayOfWeek endW = end.getDayOfWeek();
+
+    final long days = ChronoUnit.DAYS.between(start, end);
+    final long daysWithoutWeekends = days - 2 * ((days + startW.getValue())/7);
+
+    //adjust for starting and ending on a Sunday:
+    return daysWithoutWeekends + (startW == DayOfWeek.SUNDAY ? 1 : 0) + (endW == DayOfWeek.SUNDAY ? 1 : 0);
+	}
+
+
 
 
 	private boolean getReservation(int code) throws SQLException {
