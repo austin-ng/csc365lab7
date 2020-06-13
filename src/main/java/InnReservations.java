@@ -27,6 +27,7 @@ public class InnReservations {
             ir.initDb();
 	    Scanner s = new Scanner(System.in);
 	    int cur = 0;
+	    int code;
 	    while (cur != 6) {
 	    	System.out.println();
 	    	System.out.println("Select an option:");
@@ -47,7 +48,7 @@ public class InnReservations {
 	    			break;
 	    		case 3:
 	    			System.out.println("Please enter the integer code of the reservation you would like to update:");
-	    			int code = s.nextInt();
+	    			code = s.nextInt();
 	    			while(!ir.getReservation(code)){
 	    				System.out.println("There are no reservations with that reservation code. " +
 								"Please enter a valid integer code:");
@@ -56,6 +57,22 @@ public class InnReservations {
 	    			ir.updateReservation(code);
 	    			break;
 	    		case 4:
+					System.out.println("Please enter the integer code of the reservation you would like to cancel:");
+					code = s.nextInt();
+					while(!ir.getReservation(code)){
+						System.out.println("There are no reservations with that reservation code. " +
+								"Please enter a valid integer code:");
+						code = s.nextInt();
+					}
+					System.out.println("Are you sure you wish to cancel this reservation?   [y/n]");
+					// skip an extra newline
+					s.nextLine();
+					String confirm = s.nextLine();
+					if (confirm.equals("y")){
+						ir.cancelReservation(code);
+					} else {
+						System.out.println("The reservation has not been canceled.");
+					}
 	    			break;
 	    		case 5:
 	    			ir.getRevenueSummary();
@@ -230,16 +247,17 @@ public class InnReservations {
 				}
 				sql = sql.substring(0, sql.length()-2) + " WHERE CODE=" + code;
 
-				PreparedStatement pstmt = conn.prepareStatement(sql);
-				for (int i = 0; i < valsList.size(); i++) {
-					if (colsList.get(i).equals("Kids") || colsList.get(i).equals("Adults")) {
-						pstmt.setInt(i + 1, Integer.parseInt(valsList.get(i)));
-					} else {
-						pstmt.setString(i + 1, valsList.get(i));
+				try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+					for (int i = 0; i < valsList.size(); i++) {
+						if (colsList.get(i).equals("Kids") || colsList.get(i).equals("Adults")) {
+							pstmt.setInt(i + 1, Integer.parseInt(valsList.get(i)));
+						} else {
+							pstmt.setString(i + 1, valsList.get(i));
+						}
 					}
-				}
 
-				pstmt.executeUpdate();
+					pstmt.executeUpdate();
+				}
 			}
 		}
 	}
@@ -319,7 +337,22 @@ public class InnReservations {
 		}
 	}
 
-	private int getRevenueSummary() throws SQLException {
+	private void cancelReservation(int code) throws SQLException {
+		try (Connection conn = DriverManager.getConnection(JDBC_URL,
+				JDBC_USER,
+				JDBC_PASSWORD)) {
+			// dont need to sanitize this because input is integer from nextInt
+			String sql = "DELETE FROM lab7_reservations\n" +
+						 "WHERE Code=" + code;
+
+			try (Statement stmt = conn.createStatement()) {
+				stmt.executeUpdate(sql);
+				System.out.println("Reservation with code " + code + " has been canceled");
+			}
+		}
+	}
+
+	private void getRevenueSummary() throws SQLException {
 		try (Connection conn = DriverManager.getConnection(JDBC_URL,
 				JDBC_USER,
 				JDBC_PASSWORD)) {
@@ -503,11 +536,6 @@ public class InnReservations {
 			try (Statement stmt = conn.createStatement();
 				 ResultSet rs = stmt.executeQuery(sql)) {
 
-				if (!rs.isBeforeFirst()){
-					System.out.println("There have been no reservations in the inn this year.");
-					return 1;
-				}
-
 				System.out.println("Revenue format: Room, Jan, Feb, March, April, May, June, July, " +
 						"Aug, Sept, Oct, Nov, Dec, Total");
 				while (rs.next()) {
@@ -534,7 +562,6 @@ public class InnReservations {
 			}
 
 		}
-		return 0;
 	}
 
 
